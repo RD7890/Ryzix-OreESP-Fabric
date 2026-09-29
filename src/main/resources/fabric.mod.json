@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "ryzixoreesp",
+	"version": "${version}",
+	"name": "Ryzix-OreESP",
+	"description": "Minimal client-side OreESP for Minecraft 1.20.4. Press Z to toggle.",
+	"authors": ["Ryzix"],
+	"contact": {
+		"sources": "https://github.com/RD7890/Ryzix-OreESP-Fabric"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/ryzixoreesp/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["com.ryzix.oreesp.RyzixOreESP"]
+	},
+	"depends": {
+		"fabricloader": ">=0.15.11",
+		"minecraft": "1.20.4",
+		"java": ">=17",
+		"fabric-api": "*"
+	}
+}
