@@ -3,7 +3,7 @@
 	"id": "ryzixoreesp",
 	"version": "${version}",
 	"name": "Ryzix-OreESP",
-	"description": "Minimal client-side OreESP for Minecraft 1.20.4. Press Z to toggle.",
+	"description": "Minimal client-side OreESP for Minecraft 1.20.4 (Z to toggle) with always-on FullBright.",
 	"authors": ["Ryzix"],
 	"contact": {
 		"sources": "https://github.com/RD7890/Ryzix-OreESP-Fabric"

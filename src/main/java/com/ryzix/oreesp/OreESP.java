@@ -31,9 +31,9 @@ import java.util.function.Predicate;
  *
  * Performance model (this is the lag fix):
  *  - Nothing is scanned in render(). render() only walks a small cached list.
- *  - Scan runs from the client tick, at most once every SCAN_INTERVAL_MS,
- *    plus once immediately when the player enters a new chunk.
- *  - Only the player's own chunk is scanned (CHUNK_RADIUS = 0), below Y = SCAN_MAX_Y.
+ *  - Scan runs from the client tick, at most once every SCAN_INTERVAL_MS (2s),
+ *    plus once immediately when the player changes chunk / chunk quadrant.
+ *  - Only 4 chunks are scanned (player's chunk + 3 nearest neighbours), below Y = SCAN_MAX_Y.
  *  - Each 16x16x16 section is first tested with ChunkSection#hasAny (palette check),
  *    so sections that contain no target ore are skipped without reading a single block.
  *  - Everything runs on the main thread, so no locking / no chunk data races.
@@ -42,9 +42,9 @@ import java.util.function.Predicate;
 public final class OreESP {
 
 	// ---- config -------------------------------------------------------------
-	private static final long SCAN_INTERVAL_MS = 3000L;
+	private static final long SCAN_INTERVAL_MS = 2000L;
 	private static final int SCAN_MAX_Y = 64;      // scan blocks with y < 64
-	private static final int CHUNK_RADIUS = 0;     // 0 = only the chunk you stand in
+	// Scans 4 chunks: your chunk + the 3 nearest neighbours (a 2x2 block around you)
 	// -------------------------------------------------------------------------
 
 	private enum OreType {
@@ -84,6 +84,7 @@ public final class OreESP {
 	private static List<CachedOre> cache = new ArrayList<>();
 	private static long lastScanTime = 0L;
 	private static ChunkPos lastChunk = null;
+	private static int lastDx = 0, lastDz = 0;
 	private static ClientWorld lastWorld = null;
 
 	private OreESP() {}
@@ -115,23 +116,32 @@ public final class OreESP {
 		}
 
 		ChunkPos chunkPos = client.player.getChunkPos();
-		long now = System.currentTimeMillis();
-		boolean movedChunk = !chunkPos.equals(lastChunk);
+		// Which side of the current chunk are we on? Pick the neighbours on that side.
+		int dx = (client.player.getBlockX() & 15) < 8 ? -1 : 1;
+		int dz = (client.player.getBlockZ() & 15) < 8 ? -1 : 1;
 
-		if (movedChunk || now - lastScanTime >= SCAN_INTERVAL_MS) {
+		long now = System.currentTimeMillis();
+		boolean moved = !chunkPos.equals(lastChunk) || dx != lastDx || dz != lastDz;
+
+		if (moved || now - lastScanTime >= SCAN_INTERVAL_MS) {
 			lastScanTime = now;
 			lastChunk = chunkPos;
-			cache = scan(world, chunkPos);
+			lastDx = dx;
+			lastDz = dz;
+			cache = scan(world, chunkPos, dx, dz);
 		}
 	}
 
-	private static List<CachedOre> scan(ClientWorld world, ChunkPos center) {
+	private static List<CachedOre> scan(ClientWorld world, ChunkPos center, int nx, int nz) {
 		List<CachedOre> found = new ArrayList<>();
 		int bottomY = world.getBottomY();
 
-		for (int dx = -CHUNK_RADIUS; dx <= CHUNK_RADIUS; dx++) {
-			for (int dz = -CHUNK_RADIUS; dz <= CHUNK_RADIUS; dz++) {
-				Chunk chunk = world.getChunk(center.x + dx, center.z + dz, ChunkStatus.FULL, false);
+		// offsets: own chunk, X neighbour, Z neighbour, diagonal neighbour
+		int[][] offsets = { {0, 0}, {nx, 0}, {0, nz}, {nx, nz} };
+
+		for (int[] off : offsets) {
+			{
+				Chunk chunk = world.getChunk(center.x + off[0], center.z + off[1], ChunkStatus.FULL, false);
 				if (chunk == null) continue;
 
 				ChunkSection[] sections = chunk.getSectionArray();

@@ -32,6 +32,7 @@ public class RyzixOreESP implements ClientModInitializer {
 				client.player.sendMessage(
 						Text.literal("OreESP: " + (OreESP.isEnabled() ? "ON" : "OFF")), true);
 			}
+			FullBright.tick(client); // always on, no key
 			OreESP.tick(client);
 		});
 
